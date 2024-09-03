@@ -1,0 +1,297 @@
+Importações e Configurações Iniciais
+import streamlit as st
+import requests
+from requests.auth import HTTPBasicAuth
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
+import networkx as nx
+
+# Configurações
+AIRFLOW_URL = "http://localhost:8080/api/v1"
+AIRFLOW_USER = "admin"
+AIRFLOW_PASSWORD = "admin"
+Esta seção importa as bibliotecas necessárias e define as configurações iniciais para a conexão com a API do Airflow. As principais bibliotecas utilizadas são:
+
+Streamlit: para criar a interface web interativa
+Requests: para fazer chamadas à API do Airflow
+Pandas: para manipulação de dados
+Plotly: para criar visualizações interativas
+NetworkX: para análise de grafos (usado na análise de dependências)
+As configurações do Airflow (URL, usuário e senha) são definidas como constantes.
+
+Funções Auxiliares
+def airflow_api_request(endpoint):
+    try:
+        response = requests.get(
+            f"{AIRFLOW_URL}/{endpoint}",
+            auth=HTTPBasicAuth(AIRFLOW_USER, AIRFLOW_PASSWORD)
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        st.error(f"Erro ao acessar a API do Airflow: {e}")
+        return None
+
+@st.cache_data(ttl=300)
+def get_dags_data():
+    dags = airflow_api_request("dags")
+    if dags:
+        return pd.DataFrame(dags['dags'])
+    return pd.DataFrame()
+
+@st.cache_data(ttl=60)
+def get_recent_dag_runs():
+    dag_runs = airflow_api_request("dags/~/dagRuns")
+    if dag_runs:
+        return pd.DataFrame(dag_runs['dag_runs'])
+    return pd.DataFrame()
+Estas funções auxiliares são responsáveis por:
+
+airflow_api_request: Faz requisições à API do Airflow, lidando com autenticação e erros.
+get_dags_data: Obtém dados de todas as DAGs e os converte para um DataFrame do Pandas. Usa cache do Streamlit com TTL de 300 segundos.
+get_recent_dag_runs: Obtém dados das execuções recentes de DAGs. Usa cache com TTL de 60 segundos.
+Configuração da Página e Navegação
+st.set_page_config(page_title="Airflow Analytics Dashboard", layout="wide")
+
+st.sidebar.title("Navegação")
+page = st.sidebar.radio("Escolha uma página", ["Visão Geral", "Detalhes das DAGs", "Métricas de Desempenho", "Análise de Dependências"])
+Esta seção configura o layout da página e cria um menu de navegação na barra lateral, permitindo ao usuário escolher entre diferentes páginas do dashboard.
+
+Página de Visão Geral
+if page == "Visão Geral":
+    st.title("Airflow Analytics Dashboard")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Total de DAGs", len(get_dags_data()))
+        
+    with col2:
+        recent_runs = get_recent_dag_runs()
+        st.metric("Execuções nas últimas 24h", len(recent_runs[recent_runs['execution_date'] > (datetime.now() - timedelta(days=1)).isoformat()]))
+    
+    # Gráfico de status das DAGs
+    dags_df = get_dags_data()
+    status_counts = dags_df['is_paused'].value_counts()
+    fig = px.pie(values=status_counts.values, names=status_counts.index, title="Status das DAGs")
+    st.plotly_chart(fig)
+    
+    # Tabela de DAGs com indicador visual
+    st.subheader("Lista de DAGs")
+    
+    def status_indicator(is_paused):
+        return "🟢" if not is_paused else "⚪"
+    
+    dags_df['Status'] = dags_df['is_paused'].apply(status_indicator)
+    dags_df = dags_df[['Status', 'dag_id', 'last_parsed_time']]
+    st.dataframe(dags_df, hide_index=True)
+    
+    placeholder = st.empty()
+    placeholder.markdown("🟢 DAGs Online")
+Esta página fornece uma visão geral do Airflow, incluindo:
+
+Métricas de total de DAGs e execuções recentes
+Um gráfico de pizza mostrando o status das DAGs (pausadas ou ativas)
+Uma tabela com lista de DAGs, incluindo um indicador visual de status
+Página de Detalhes das DAGs
+elif page == "Detalhes das DAGs":
+    st.title("Detalhes das DAGs")
+    
+    selected_dag = st.selectbox("Escolha uma DAG", get_dags_data()['dag_id'])
+    
+    if selected_dag:
+        dag_details = airflow_api_request(f"dags/{selected_dag}")
+        if dag_details:
+            st.json(dag_details)
+        
+        st.subheader("Execuções Recentes")
+        dag_runs = airflow_api_request(f"dags/{selected_dag}/dagRuns")
+        if dag_runs:
+            st.dataframe(pd.DataFrame(dag_runs['dag_runs']))
+Esta página permite ao usuário selecionar uma DAG específica e ver seus detalhes, incluindo:
+
+Informações detalhadas da DAG selecionada
+Uma tabela com as execuções recentes da DAG selecionada
+Página de Métricas de Desempenho
+elif page == "Métricas de Desempenho":
+    st.title("Métricas de Desempenho")
+    
+    performance_data = {
+        'DAG': ['execute_jupyter_notebooks', 'kafka_analytics', 'mongodb_simple_check', 
+                'monitor_elasticsearch', 'monitor_postgres', 'spark_output_analytics'],
+        'Tempo Médio de Execução (min)': [20, 15, 5, 3, 2, 22],
+        'Taxa de Sucesso (%)': [98, 97, 99, 99.5, 99.8, 95],
+        'Uso de CPU (%)': [30, 25, 10, 5, 5, 40],
+        'Uso de Memória (MB)': [512, 256, 128, 64, 64, 1024]
+    }
+    perf_df = pd.DataFrame(performance_data)
+    
+    # Gráfico de barras para métricas de desempenho
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name='Tempo Médio de Execução', x=perf_df['DAG'], y=perf_df['Tempo Médio de Execução (min)']))
+    fig.add_trace(go.Bar(name='Taxa de Sucesso', x=perf_df['DAG'], y=perf_df['Taxa de Sucesso (%)']))
+    fig.update_layout(barmode='group', title="Métricas de Desempenho por DAG")
+    st.plotly_chart(fig)
+    
+    # Gráfico de radar para uso de recursos
+    fig_radar =```
+Private 
+Suggestions
+continue
+ # Gráfico de radar para uso de recursos
+Answer | Claude 3.5 Sonnet Model
+Continuando a explicação detalhada do código:
+
+Página de Métricas de Desempenho (continuação)
+# Gráfico de radar para uso de recursos
+fig_radar = go.Figure()
+for dag in perf_df['DAG']:
+    fig_radar.add_trace(go.Scatterpolar(
+        r=[perf_df[perf_df['DAG'] == dag]['Uso de CPU (%)'].values[0],
+           perf_df[perf_df['DAG'] == dag]['Uso de Memória (MB)'].values[0],
+           perf_df[perf_df['DAG'] == dag]['Tempo Médio de Execução (min)'].values[0]],
+        theta=['CPU', 'Memória', 'Tempo de Execução'],
+        fill='toself',
+        name=dag
+    ))
+fig_radar.update_layout(
+    polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+    showlegend=True,
+    title="Uso de Recursos por DAG"
+)
+st.plotly_chart(fig_radar)
+
+st.dataframe(perf_df)
+Esta seção cria um gráfico de radar para visualizar o uso de recursos por DAG. O gráfico mostra três métricas para cada DAG: uso de CPU, uso de memória e tempo médio de execução. Cada DAG é representada por uma área no gráfico radar, permitindo uma comparação visual rápida do uso de recursos entre as DAGs.
+
+Após o gráfico de radar, o código exibe uma tabela com todos os dados de desempenho usando st.dataframe(perf_df).
+
+Página de Análise de Dependências
+elif page == "Análise de Dependências":
+    st.title("Análise de Dependências de DAGs")
+    
+    # Simulando dados de dependências (substitua por dados reais se disponíveis)
+    dependencies = {
+        'execute_jupyter_notebooks': ['kafka_analytics', 'spark_output_analytics'],
+        'kafka_analytics': ['mongodb_simple_check'],
+        'mongodb_simple_check': ['monitor_elasticsearch'],
+        'monitor_elasticsearch': ['monitor_postgres'],
+        'monitor_postgres': [],
+        'spark_output_analytics': ['monitor_elasticsearch']
+    }
+    
+    # Criando um grafo de dependências
+    G = nx.DiGraph(dependencies)
+    
+    # Visualização do grafo
+    pos = nx.spring_layout(G)
+    edge_x = []
+    edge_y = []
+    for edge in G.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
+
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.5, color='#888'),
+        hoverinfo='none',
+        mode='lines')
+
+    node_x = []
+    node_y = []
+    for node in G.nodes():
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+
+    node_trace = go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers',
+        hoverinfo='text',
+        marker=dict(
+            showscale=True,
+            colorscale='YlGnBu',
+            reversescale=True,
+            color=[],
+            size=10,
+            colorbar=dict(
+                thickness=15,
+                title='Grau do Nó',
+                xanchor='left',
+                titleside='right'
+            ),
+            line_width=2))
+
+    # Cor dos nós baseada no grau
+    node_adjacencies = []
+    node_text = []
+    for node, adjacencies in enumerate(G.adjacency()):
+        node_adjacencies.append(len(adjacencies[1]))
+        node_text.append(f'{adjacencies[0]}<br># de conexões: {len(adjacencies[1])}')
+
+    node_trace.marker.color = node_adjacencies
+    node_trace.text = node_text
+
+    # Criando a figura
+    fig = go.Figure(data=[edge_trace, node_trace],
+                    layout=go.Layout(
+                        title='Grafo de Dependências das DAGs',
+                        titlefont_size=16,
+                        showlegend=False,
+                        hovermode='closest',
+                        margin=dict(b=20,l=5,r=5,t=40),
+                        annotations=[ dict(
+                            text="",
+                            showarrow=False,
+                            xref="paper", yref="paper",
+                            x=0.005, y=-0.002 ) ],
+                        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    )
+
+    st.plotly_chart(fig)
+Esta seção cria uma visualização interativa do grafo de dependências das DAGs:
+
+Simula dados de dependências entre DAGs (em um cenário real, esses dados seriam obtidos do Airflow).
+Cria um grafo direcionado usando NetworkX.
+Gera uma visualização interativa do grafo usando Plotly, onde:
+Os nós representam as DAGs
+As arestas representam as dependências entre DAGs
+A cor e o tamanho dos nós são baseados no número de conexões (grau do nó)
+Análise de Dependências Críticas
+# Análise de dependências críticas
+st.subheader("Análise de Dependências Críticas")
+critical_paths = list(nx.all_simple_paths(G, 'execute_jupyter_notebooks', 'monitor_postgres'))
+
+if critical_paths:
+    st.write("Caminhos críticos identificados:")
+    for i, path in enumerate(critical_paths, 1):
+        st.write(f"{i}. {' -> '.join(path)}")
+    
+    longest_path = max(critical_paths, key=len)
+    st.write(f"Caminho mais longo: {' -> '.join(longest_path)}")
+    st.write(f"Número de etapas no caminho mais longo: {len(longest_path)}")
+else:
+    st.write("Nenhum caminho crítico identificado.")
+
+# Sugestões de otimização
+st.subheader("Sugestões de Otimização")
+high_degree_nodes = sorted(G.degree, key=lambda x: x[1], reverse=True)[:3]
+st.write("DAGs com mais dependências (potenciais gargalos):")
+for node, degree in high_degree_nodes:
+    st.write(f"- {node}: {degree} conexões")
+
+st.write("Sugestões de otimização:")
+st.write("1. Considere paralelizar tarefas em DAGs com alto grau de dependência.")
+st.write("2. Revise a necessidade de todas as dependências nos caminhos críticos.")
+st.write("3. Monitore de perto o desempenho das DAGs no caminho mais longo.")
+Esta seção realiza uma análise mais profunda das dependências:
+
+Identifica caminhos críticos no grafo de dependências.
+Mostra o caminho mais longo e seu número de etapas.
+Identifica DAGs com mais dependências (potenciais gargalos).
+Fornece sugestões de otimização baseadas na análise.

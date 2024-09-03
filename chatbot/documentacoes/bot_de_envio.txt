@@ -1,0 +1,95 @@
+Aqui está uma explicação detalhada do código:
+
+**Importação de bibliotecas**
+
+O código começa importando várias bibliotecas:
+
+* `streamlit` para criar uma interface gráfica
+* `pandas` para manipular dados
+* `random` para gerar números aleatórios
+* `json` para trabalhar com dados em formato JSON
+* `datetime` e `timedelta` para trabalhar com datas e horários
+* `unidecode` para remover acentos e caracteres especiais de strings
+* `time` para trabalhar com tempo
+* `requests` para fazer requisições HTTP
+* `sqlalchemy` para trabalhar com bancos de dados SQL
+* `calendar` para trabalhar com datas e horários
+* `pymongo` para trabalhar com bancos de dados NoSQL
+
+**Configurações**
+
+O código define várias configurações:
+
+* `DATABASE_URI`: a URL do banco de dados PostgreSQL
+* `POST_URL`: a URL para fazer requisições POST
+* `MONGO_URI`: a URL do banco de dados MongoDB
+
+**Funções**
+
+O código define várias funções:
+
+* `get_mongo_data()`: retorna os dados do banco de dados MongoDB
+* `get_last_invoice_no()`: retorna o último número de invoice do banco de dados MongoDB
+* `random_date(start, end)`: gera uma data aleatória entre duas datas
+* `random_date_in_month(year, month)`: gera uma data aleatória dentro de um mês específico
+* `random_date_in_period(year, month, day=None)`: gera uma data aleatória dentro de um período específico
+* `load_data()`: carrega os dados do banco de dados PostgreSQL
+* `generate_invoice(df, invoice_no)`: gera um invoice com base nos dados do banco de dados PostgreSQL
+
+**Interface Streamlit**
+
+O código cria uma interface gráfica com Streamlit:
+
+* `st.title("Gerador e Enviador de Invoices")`: define o título da interface
+* `st.sidebar.title("Configurações")`: define o título do painel lateral
+* `num_envios = st.sidebar.slider("Número de envios por lote", 1, 500, 10)`: define um slider para selecionar o número de envios por lote
+
+**Opções de configuração**
+
+O código define várias opções de configuração:
+
+* `use_specific_meio`: opção para usar um meio de envio específico
+* `use_specific_description`: opção para usar uma descrição específica
+* `selected_year` e `selected_month`: opções para selecionar o ano e o mês
+* `date_option`: opção para selecionar um dia específico ou todo o mês
+
+**Lógica de controle**
+
+O código define a lógica de controle para o envio de invoices:
+
+* `if start_button: st.session_state.is_running = True`: define a ação para o botão "Iniciar Envio"
+* `if stop_button: st.session_state.is_running = False`: define a ação para o botão "Pausar Envio"
+* `if st.session_state.is_running: ...`: define a lógica para o envio de invoices
+
+**Envio de invoices**
+
+O código envia os invoices:
+
+* `invoice = generate_invoice(df, st.session_state.invoice_no)`: gera um invoice com base nos dados do banco de dados PostgreSQL
+* `invoice_json = json.dumps(invoice)`: converte o invoice para JSON
+* `response = requests.post(POST_URL, json=invoice)`: faz uma requisição POST para enviar o invoice
+* `st.success(f"Invoice {st.session_state.invoice_no} enviado. Status: {response.status_code}")`: exibe uma mensagem de sucesso
+
+**Atualização de progresso**
+
+O código atualiza o progresso do envio de invoices:
+
+* `progress_bar.progress((i + 1) / num_envios)`: atualiza a barra de progresso
+
+**Resetar a barra de progresso**
+
+O código reseta a barra de progresso após o envio de um lote de invoices:
+
+* `progress_bar.empty()`: reseta a barra de progresso
+
+**Atualizar contador**
+
+O código atualiza o contador de envios:
+
+* `counter.text(f"Lote de {num_envios} invoices enviado. Aguardando próximo lote.")`: atualiza o contador
+
+**Pausar automaticamente**
+
+O código pausa automaticamente após o envio de um lote de invoices:
+
+* `st.session_state.is_running = False`: pausa o envio de invoices

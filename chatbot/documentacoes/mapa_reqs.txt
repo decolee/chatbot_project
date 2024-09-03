@@ -1,0 +1,277 @@
+Aqui está uma explicação detalhada do código, etapa por etapa:
+
+**Importação de bibliotecas**
+
+```python
+import streamlit as st
+import folium
+from streamlit_folium import folium_static
+import pandas as pd
+from elasticsearch import Elasticsearch
+from elasticsearch.exceptions import ConnectionError
+from datetime import datetime
+```
+
+*   Importa as bibliotecas necessárias para o funcionamento do aplicativo:
+    *   `streamlit` para criar a interface da aplicação;
+    *   `folium` para criar o mapa;
+    *   `streamlit_folium` para integrar o mapa com a aplicação Streamlit;
+    *   `pandas` para manipular os dados;
+    *   `elasticsearch` para se conectar ao Elasticsearch e buscar dados;
+    *   `ConnectionError` para lidar com erros de conexão ao Elasticsearch;
+    *   `datetime` para converter timestamps em formato de data legível.
+
+**Configuração do Elasticsearch**
+
+```python
+es = Elasticsearch(
+    ['http://localhost:9200'],
+    timeout=30,
+    max_retries=10,
+    retry_on_timeout=True
+)
+```
+
+*   Configura a conexão ao Elasticsearch:
+    *   `http://localhost:9200` é o endereço do servidor Elasticsearch;
+    *   `timeout=30` define o tempo de espera para a conexão (30 segundos);
+    *   `max_retries=10` define o número máximo de tentativas de conexão;
+    *   `retry_on_timeout=True` permite que a conexão seja refeita se o tempo de espera for excedido.
+
+**Função para buscar dados do Elasticsearch**
+
+```python
+def get_data_from_elasticsearch():
+    query = {
+        "query": {
+            "match_all": {}
+        }
+    }
+    try:
+        response = es.search(index="rating_notas", body=query, size=1000)
+        hits = response['hits']['hits']
+        data = [hit['_source'] for hit in hits]
+        return pd.DataFrame(data)
+    except ConnectionError:
+        st.error("Não foi possível conectar ao Elasticsearch. Verifique se o serviço está rodando e acessível.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Erro ao buscar dados do Elasticsearch: {str(e)}")
+        return pd.DataFrame()
+```
+
+*   Define a função `get_data_from_elasticsearch()` para buscar dados do Elasticsearch:
+    *   `query` é a consulta para buscar todos os documentos no índice `rating_notas`;
+    *   `try` tenta executar a consulta e recuperar os dados;
+    *   `response` é a resposta da consulta;
+    *   `hits` são os documentos que atendem à consulta;
+    *   `data` é a lista de documentos;
+    *   `return pd.DataFrame(data)` retorna um DataFrame com os dados;
+    *   `except ConnectionError` captura erros de conexão ao Elasticsearch e exibe uma mensagem de erro;
+    *   `except Exception as e` captura outros erros e exibe uma mensagem de erro com a descrição do erro.
+
+**Função para converter timestamp em milissegundos para formato de data legível**
+
+```python
+def convert_timestamp(ts):
+    try:
+        return datetime.fromtimestamp(int(ts)/1000).strftime('%Y-%m-%d %H:%M:%S')
+    except:
+        return ts  # Retorna o valor original se a conversão falhar
+```
+
+*   Define a função `convert_timestamp()` para converter um timestamp em milissegundos para um formato de data legível:
+    *   `try` tenta converter o timestamp;
+    *   `datetime.fromtimestamp(int(ts)/1000)` converte o timestamp em um objeto `datetime`;
+    *   `strftime('%Y-%m-%d %H:%M:%S')` formata o objeto `datetime` em uma string no formato `YYYY-MM-DD HH:MM:SS`;
+    *   `except` captura erros de conversão e retorna o valor original do timestamp.
+
+**Função para remover vírgulas e converter para inteiro**
+
+```python
+def clean_integer(value):
+    if pd.isna(value):
+        return value
+    try:
+        return int(str(value).replace(',', ''))
+    except:
+        return value  # Retorna o valor original se a conversão falhar
+```
+
+*   Define a função `clean_integer()` para remover vírgulas e converter um valor para um inteiro:
+    *   `if pd.isna(value)` verifica se o valor é nulo ou não;
+    *   `try` tenta converter o valor;
+    *   `str(value).replace(',', '')` remove as vírgulas do valor;
+    *   `int(...)` converte o valor em um inteiro;
+    *   `except` captura erros de conversão e retorna o valor original.
+
+**Carregar dados**
+
+```python
+df = get_data_from_elasticsearch()
+```
+
+*   Chama a função `get_data_from_elasticsearch()` para buscar os dados do Elasticsearch e armazena-os em um DataFrame `df`.
+
+**Verificar se o DataFrame está vazio**
+
+```python
+if df.empty:
+    st.error("Não foi possível carregar os dados do Elasticsearch. Por favor, verifique a conexão e tente novamente.")
+    st.stop()
+```
+
+*   Verifica se o DataFrame `df` está vazio:
+    *   `if df.empty` verifica se o DataFrame está vazio;
+    *   `st.error(...)` exibe uma mensagem de erro se o DataFrame estiver vazio;
+    *   `st.stop()` interrompe a execução do aplicativo.
+
+**Corrigir formatos das colunas**
+
+```python
+if 'InvoiceDate' in df.columns:
+    df['InvoiceDate'] = df['InvoiceDate'].apply(convert_timestamp)
+
+if 'CustomerID' in df.columns:
+    df['CustomerID'] = df['CustomerID'].apply(clean_integer)
+
+if 'InvoiceNo' in df.columns:
+    df['InvoiceNo'] = df['InvoiceNo'].apply(clean_integer)
+```
+
+*   Corrige os formatos das colunas do DataFrame `df`:
+    *   `if 'InvoiceDate' in df.columns` verifica se a coluna `InvoiceDate` existe;
+    *   `df['InvoiceDate'] = df['InvoiceDate'].apply(convert_timestamp)` converte a coluna `InvoiceDate` para um formato de data legível;
+    *   `if 'CustomerID' in df.columns` verifica se a coluna `CustomerID` existe;
+    *   `df['CustomerID'] = df['CustomerID'].apply(clean_integer)` converte a coluna `CustomerID` para um inteiro;
+    *   `if 'InvoiceNo' in df.columns` verifica se a coluna `InvoiceNo` existe;
+    *   `df['InvoiceNo'] = df['InvoiceNo'].apply(clean_integer)` converte a coluna `InvoiceNo` para um inteiro.
+
+**Configuração da página Streamlit**
+
+```python
+st.set_page_config(page_title="Mapa de Avaliações", layout="wide")
+st.title("Mapa de Avaliações de Agências")
+```
+
+*   Configura a página Streamlit:
+    *   `st.set_page_config(...)` define o título da página e o layout;
+    *   `st.title(...)` define o título da página.
+
+**Filtros**
+
+```python
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    descriptions = st.multiselect("Filtrar por Descrição", options=df['Description'].unique())
+
+with col2:
+    ratings = st.multiselect("Filtrar por Avaliação", options=sorted(df['SentimentRating'].unique()))
+
+with col3:
+    agencies = st.multiselect("Filtrar por Agência", options=df['nome_da_agencia'].unique())
+
+with col4:
+    invoice_no = st.text_input("Filtrar por InvoiceNo")
+```
+
+*   Cria os filtros para a página:
+    *   `col1, col2, col3, col4 = st.columns(4)` divide a página em quatro colunas;
+    *   `with col1` define o primeiro filtro;
+    *   `descriptions = st.multiselect(...)` permite que o usuário selecione múltiplas descrições;
+    *   `with col2` define o segundo filtro;
+    *   `ratings = st.multiselect(...)` permite que o usuário selecione múltiplas avaliações;
+    *   `with col3` define o terceiro filtro;
+    *   `agencies = st.multiselect(...)` permite que o usuário selecione múltiplas agências;
+    *   `with col4` define o quarto filtro;
+    *   `invoice_no = st.text_input(...)` permite que o usuário insira um número de invoice.
+
+**Aplicar filtros**
+
+```python
+filtered_df = df.copy()
+if descriptions:
+    filtered_df = filtered_df[filtered_df['Description'].isin(descriptions)]
+if ratings:
+    filtered_df = filtered_df[filtered_df['SentimentRating'].isin(ratings)]
+if agencies:
+    filtered_df = filtered_df[filtered_df['nome_da_agencia'].isin(agencies)]
+if invoice_no:
+    filtered_df = filtered_df[filtered_df['InvoiceNo'].astype(str).str.contains(invoice_no)]
+```
+
+*   Aplica os filtros ao DataFrame `df`:
+    *   `filtered_df = df.copy()` cria uma cópia do DataFrame `df`;
+    *   `if descriptions` verifica se o usuário selecionou descrições;
+    *   `filtered_df = filtered_df[filtered_df['Description'].isin(descriptions)]` filtra o DataFrame pelas descrições selecionadas;
+    *   `if ratings` verifica se o usuário selecionou avaliações;
+    *   `filtered_df = filtered_df[filtered_df['SentimentRating'].isin(ratings)]` filtra o DataFrame pelas avaliações selecionadas;
+    *   `if agencies` verifica se o usuário selecionou agências;
+    *   `filtered_df = filtered_df[filtered_df['nome_da_agencia'].isin(agencies)]` filtra o DataFrame pelas agências selecionadas;
+    *   `if invoice_no` verifica se o usuário inseriu um número de invoice;
+    *   `filtered_df = filtered_df[filtered_df['InvoiceNo'].astype(str).str.contains(invoice_no)]` filtra o DataFrame pelo número de invoice inserido.
+
+**Criar mapa**
+
+```python
+m = folium.Map(location=[-23.590954, -46.690858], zoom_start=12)
+```
+
+*   Cria um mapa com a biblioteca Folium:
+    *   `m = folium.Map(...)` cria um mapa;
+    *   `location=[-23.590954, -46.690858]` define a localização do mapa (São Paulo, Brasil);
+    *   `zoom_start=12` define o nível de zoom inicial do mapa.
+
+**Adicionar marcadores ao mapa**
+
+```python
+for _, row in filtered_df.iterrows():
+    folium.Marker(
+        location=[row['latitude'], row['longitude']],
+        popup=f"Agência: {row['nome_da_agencia']}<br>"
+            f"Descrição: {row['Description']}<br>"
+            f"Avaliação: {row['SentimentRating']}<br>"
+            f"InvoiceNo: {row['InvoiceNo']}",
+        tooltip=row['nome_da_agencia']
+    ).add_to(m)
+```
+
+*   Adiciona marcadores ao mapa:
+    *   `for _, row in filtered_df.iterrows()` itera sobre as linhas do DataFrame `filtered_df`;
+    *   `folium.Marker(...)` cria um marcador;
+    *   `location=[row['latitude'], row['longitude']]` define a localização do marcador;
+    *   `popup=...` define a janela pop-up do marcador;
+    *   `tooltip=row['nome_da_agencia']` define a dica de ferramenta do marcador;
+    *   `.add_to(m)` adiciona o marcador ao mapa.
+
+**Exibir mapa**
+
+```python
+folium_static(m)
+```
+
+*   Exibe o mapa:
+    *   `folium_static(m)` exibe o mapa em um formato estático.
+
+**Exibir dados filtrados**
+
+```python
+st.subheader("Dados Filtrados")
+st.dataframe(filtered_df)
+```
+
+*   Exibe os dados filtrados:
+    *   `st.subheader(...)` define o título da seção;
+    *   `st.dataframe(filtered_df)` exibe o DataFrame `filtered_df` em uma tabela.
+
+**Executar o aplicativo**
+
+```python
+if __name__ == "__main__":
+    st.write("Aplicativo iniciado")
+```
+
+*   Executa o aplicativo:
+    *   `if __name__ == "__main__"` verifica se o script está sendo executado diretamente;
+    *   `st.write(...)` exibe uma mensagem de boas-vindas.

@@ -1,0 +1,59 @@
+O código começa importando várias bibliotecas necessárias para a análise de dados, visualização e interação com APIs de IA. Algumas das principais importações incluem:
+
+Streamlit para criar a interface da aplicação web
+Pandas para manipulação de dados
+Plotly Express para criação de gráficos interativos
+MongoDB para conexão com o banco de dados
+OpenAI e Langchain para integração com modelos de linguagem
+Scikit-learn para análise de dados e machine learning
+Além disso, são definidas algumas configurações iniciais, como a URI do MongoDB e a chave da API OpenAI.
+
+Funções Auxiliares
+O código define várias funções auxiliares para preparar e processar dados:
+
+safe_float: Converte valores para float de forma segura
+prepare_data_for_llama e prepare_data_for_gpt: Preparam os dados para serem utilizados pelos modelos de IA
+setup_language_model: Configura o modelo de linguagem OpenAI
+count_tokens: Conta o número de tokens em um texto
+generate_response: Gera uma resposta usando o modelo de linguagem
+Função Principal (main)
+A função main() é o coração da aplicação. Ela configura a interface do Streamlit e gerencia o fluxo da aplicação:
+
+Configura a página e define o título
+Inicializa o estado da sessão para armazenar dados entre interações
+Cria botões para filtrar períodos específicos e um seletor de datas personalizado
+Implementa uma opção para comparar dois períodos diferentes
+Cria botões para gerar análise e chamar a IA
+Análise de Dados
+Quando o usuário clica em "Gerar Análise", o código:
+
+Obtém dados do MongoDB para o período selecionado
+Aplica filtros interativos (agências, agrupadores, faixa de sentimento)
+Realiza várias análises nos dados filtrados, incluindo:
+Distribuição de sentimentos
+Total de registros por agrupador
+Média de SentimentRating
+Análise de tendências
+Top 5 descrições mais frequentes
+Correlações com SentimentRating
+Segmentação de clientes
+Análise geográfica
+Comparação entre agências
+Análise de palavras-chave
+Cria e exibe diversos gráficos interativos usando Plotly Express
+Integração com IA
+O código integra dois modelos de IA:
+
+GPT-4 (via OpenAI API):
+Analisa os dados e fornece insights
+Responde a perguntas específicas do usuário sobre os dados
+Modelo local (ChamAI):
+Fornece uma análise alternativa dos dados
+Também responde a perguntas do usuário
+Funcionalidades Adicionais
+Sistema de alerta para métricas importantes
+Recomendações automáticas baseadas nos dados analisados
+Chatbot para responder perguntas específicas sobre os dados
+Funcionalidade de exportação dos dados para CSV
+Conclusão
+Este código cria uma aplicação completa e interativa para análise de feedback de clientes, combinando análise de dados tradicional com insights gerados por IA. A aplicação é altamente flexível, permitindo aos usuários explorar os dados de várias maneiras e obter insights profundos sobre o feedback dos clientes.

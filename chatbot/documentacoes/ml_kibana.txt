@@ -1,0 +1,27 @@
+1. Instalação de Pacotes
+Pergunta: Por que instalar pacotes específicos no início do notebook?
+Explicação: Normalmente, os notebooks começam com a instalação de pacotes necessários para o projeto. Isso pode incluir bibliotecas de Machine Learning, bibliotecas de integração com Kibana, ou qualquer outra dependência essencial.
+2. Importação de Bibliotecas
+Pergunta: Qual é o propósito de importar bibliotecas específicas?
+Explicação: O código geralmente importará bibliotecas como pandas para manipulação de dados, numpy para operações numéricas, sklearn para aprendizado de máquina, e APIs para conexão com Elasticsearch ou Kibana. Cada biblioteca serve para uma tarefa específica no pipeline de dados ou análise.
+3. Configuração do Ambiente
+Pergunta: Como o ambiente de execução é configurado?
+Explicação: Pode haver configurações específicas para o ambiente, como definição de chaves de API, configuração de paths, ou ajustes de parâmetros que afetam a execução do código. Isso garante que o notebook funcione corretamente em qualquer máquina que o execute.
+4. Carregamento de Dados
+Pergunta: De onde vêm os dados e como são carregados?
+Explicação: O código pode carregar dados de um banco de dados, como Elasticsearch, ou de arquivos CSV, JSON, etc. A explicação pode detalhar como os dados são acessados e armazenados em DataFrames para processamento posterior.
+5. Pré-processamento de Dados
+Pergunta: Como os dados são transformados antes da análise?
+Explicação: Normalmente, há etapas de limpeza de dados, remoção de duplicatas, tratamento de valores nulos, normalização ou transformação de características. Cada uma dessas etapas prepara os dados para análise de Machine Learning.
+6. Treinamento de Modelo
+Pergunta: Como o modelo de Machine Learning é treinado?
+Explicação: O código deve incluir etapas de divisão dos dados em conjuntos de treino e teste, escolha e treinamento do modelo, e ajuste de hiperparâmetros. Pode incluir o uso de bibliotecas como scikit-learn ou TensorFlow.
+7. Avaliação do Modelo
+Pergunta: Como o desempenho do modelo é avaliado?
+Explicação: Após o treinamento, o modelo é avaliado usando métricas como acurácia, precisão, recall, ou AUC-ROC. O código pode gerar gráficos ou relatórios para visualizar a performance.
+8. Integração com Kibana
+Pergunta: Como os resultados são enviados ao Kibana para visualização?
+Explicação: Detalhe como o código se conecta ao Elasticsearch, insere os resultados do modelo, e como esses dados são configurados para visualização no Kibana. Isso pode incluir a criação de índices, mapeamento de campos, e a configuração de dashboards.
+9. Conclusão e Próximos Passos
+Pergunta: Qual é o objetivo final do notebook e quais são os próximos passos?
+Explicação: Resuma o que o notebook alcança e sugira melhorias ou próximos passos. Pode incluir a sugestão de otimizações, adição de novos dados, ou integração com outros sistemas.
